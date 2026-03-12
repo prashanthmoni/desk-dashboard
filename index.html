@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desk Dashboard</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:              #0d1117;
+      --panel-bg:        #161b22;
+      --text-primary:    #e6edf3;
+      --text-secondary:  #7d8590;
+      --accent:          #58a6ff;
+      --divider:         #21262d;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ===== LAYOUT ===== */
+    #app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      padding: 20px;
+      gap: 24px;
+    }
+
+    #left-panel {
+      flex: 0 0 40%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    #right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* ===== CLOCK ===== */
+    #clock-section { flex-shrink: 0; }
+
+    #time {
+      font-size: 80px;
+      font-weight: 200;
+      letter-spacing: -2px;
+      color: var(--accent);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #seconds {
+      font-size: 38px;
+      color: var(--text-secondary);
+      margin-left: 2px;
+      font-weight: 300;
+    }
+
+    #date-display {
+      font-size: 20px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      font-weight: 400;
+      letter-spacing: 0.2px;
+    }
+
+    /* ===== WEATHER ===== */
+    #weather-section { flex-shrink: 0; }
+
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-secondary);
+      opacity: 0.6;
+      margin-bottom: 10px;
+    }
+
+    #weather-current {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    #weather-icon    { font-size: 32px; line-height: 1; }
+    #weather-temp    { font-size: 44px; font-weight: 300; }
+    #weather-desc    { font-size: 14px; color: var(--text-secondary); align-self: center; }
+
+    #weather-forecast {
+      display: flex;
+      gap: 6px;
+    }
+
+    .forecast-day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      padding: 8px 4px;
+      background: var(--panel-bg);
+      border-radius: 8px;
+    }
+
+    .forecast-name  { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .forecast-icon  { font-size: 18px; }
+    .forecast-temps { font-size: 12px; color: var(--text-secondary); }
+    .forecast-hi    { color: var(--text-primary); }
+
+    #weather-error {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* ===== CALENDAR ===== */
+    #calendar-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    #cal-title   { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-secondary); opacity: 0.6; }
+    #cal-status  { font-size: 11px; color: var(--text-secondary); }
+
+    /* Sign-in overlay */
+    #cal-signin {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 14px;
+    }
+
+    #cal-signin p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    #signin-btn {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #signin-btn:active { opacity: 0.8; }
+
+    /* Events list */
+    #cal-events {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--divider) transparent;
+    }
+
+    #cal-events::-webkit-scrollbar        { width: 3px; }
+    #cal-events::-webkit-scrollbar-thumb  { background: var(--divider); border-radius: 2px; }
+
+    .day-group   { margin-bottom: 18px; }
+
+    .day-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .day-label.today { color: var(--accent); }
+
+    .event-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 4px 0;
+    }
+
+    .event-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    .event-time  { font-size: 13px; color: var(--text-secondary); flex-shrink: 0; width: 78px; font-variant-numeric: tabular-nums; }
+    .event-title { font-size: 15px; color: var(--text-primary); flex: 1; word-break: break-word; line-height: 1.4; }
+
+    .no-events   { font-size: 14px; color: var(--text-secondary); font-style: italic; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ========== LEFT PANEL ========== -->
+  <div id="left-panel">
+
+    <!-- Clock -->
+    <div id="clock-section">
+      <div id="time"><span id="time-hm">--:--</span><span id="seconds">:--</span></div>
+      <div id="date-display">Loading…</div>
+    </div>
+
+    <!-- Weather -->
+    <div id="weather-section">
+      <div class="section-label">Weather</div>
+      <div id="weather-body">
+        <div id="weather-current">
+          <span id="weather-icon">⋯</span>
+          <span id="weather-temp">--</span>
+          <span id="weather-desc"></span>
+        </div>
+        <div id="weather-forecast"></div>
+      </div>
+      <div id="weather-error" style="display:none"></div>
+    </div>
+
+  </div>
+
+  <!-- ========== RIGHT PANEL ========== -->
+  <div id="right-panel">
+    <div id="calendar-section">
+
+      <div id="cal-header">
+        <span id="cal-title">Upcoming</span>
+        <span id="cal-status"></span>
+      </div>
+
+      <!-- Sign-in state -->
+      <div id="cal-signin" style="display:none">
+        <p id="cal-signin-msg">Sign in to view your calendar</p>
+        <button id="signin-btn">Sign in with Google</button>
+      </div>
+
+      <!-- Events -->
+      <div id="cal-events"></div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+// ============================================================
+//  CONFIGURATION — edit before deploying
+// ============================================================
+const CONFIG = {
+  // Google Calendar OAuth Client ID (from Google Cloud Console)
+  // e.g. '123456789-abc.apps.googleusercontent.com'
+  GOOGLE_CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com',
+
+  // Weather location — leave null to use browser geolocation on first load
+  LATITUDE:  null,
+  LONGITUDE: null,
+
+  // Display preferences
+  TEMP_UNIT:          'fahrenheit',  // 'fahrenheit' or 'celsius'
+  TIME_FORMAT:        '12h',         // '12h' or '24h'
+  CALENDAR_DAYS_AHEAD: 3,            // days of calendar events to show
+
+  // Refresh intervals (ms)
+  CALENDAR_REFRESH: 5  * 60 * 1000,   // 5 minutes
+  WEATHER_REFRESH:  30 * 60 * 1000,   // 30 minutes
+  FULL_RELOAD:       6 * 60 * 60 * 1000, // 6 hours
+};
+
+// ============================================================
+//  WEATHER HELPERS
+// ============================================================
+function weatherIcon(code) {
+  if (code === 0)                              return '☀️';
+  if (code >= 1  && code <= 3)                 return '⛅';
+  if (code === 45 || code === 48)              return '🌫️';
+  if (code >= 51 && code <= 55)                return '🌦️';
+  if (code >= 61 && code <= 65)                return '🌧️';
+  if (code >= 71 && code <= 77)                return '🌨️';
+  if (code >= 80 && code <= 82)                return '🌧️';
+  if (code === 95 || code === 96 || code === 99) return '⛈️';
+  return '🌡️';
+}
+
+function weatherDesc(code) {
+  if (code === 0)                              return 'Clear sky';
+  if (code === 1)                              return 'Mostly clear';
+  if (code === 2)                              return 'Partly cloudy';
+  if (code === 3)                              return 'Overcast';
+  if (code === 45 || code === 48)              return 'Foggy';
+  if (code >= 51 && code <= 55)                return 'Drizzle';
+  if (code >= 61 && code <= 65)                return 'Rain';
+  if (code >= 71 && code <= 77)                return 'Snow';
+  if (code >= 80 && code <= 82)                return 'Rain showers';
+  if (code === 95 || code === 96 || code === 99) return 'Thunderstorm';
+  return '';
+}
+
+// ============================================================
+//  CLOCK
+// ============================================================
+const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTH_NAMES = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+const DAY_SHORT   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON_SHORT   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderClock() {
+  const now = new Date();
+  let h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const ampm = h >= 12 ? ' PM' : ' AM';
+
+  if (CONFIG.TIME_FORMAT === '12h') h = h % 12 || 12;
+
+  const hm = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const sec = `:${String(s).padStart(2,'0')}` + (CONFIG.TIME_FORMAT === '12h' ? ampm : '');
+
+  document.getElementById('time-hm').textContent  = hm;
+  document.getElementById('seconds').textContent  = sec;
+  document.getElementById('date-display').textContent =
+    `${DAY_NAMES[now.getDay()]}, ${MONTH_NAMES[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+}
+
+// ============================================================
+//  WEATHER
+// ============================================================
+let _lat = CONFIG.LATITUDE;
+let _lon = CONFIG.LONGITUDE;
+
+async function resolveLocation() {
+  if (_lat !== null && _lon !== null) return true;
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve(false); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => { _lat = pos.coords.latitude; _lon = pos.coords.longitude; resolve(true); },
+      ()  => resolve(false),
+      { timeout: 6000 }
+    );
+  });
+}
+
+async function fetchWeather() {
+  if (!await resolveLocation()) {
+    showWeatherError('Location unavailable — set LATITUDE/LONGITUDE in config.');
+    return;
+  }
+
+  const unit = CONFIG.TEMP_UNIT === 'celsius' ? 'celsius' : 'fahrenheit';
+  const url  = `https://api.open-meteo.com/v1/forecast`
+             + `?latitude=${_lat}&longitude=${_lon}`
+             + `&current=temperature_2m,weather_code`
+             + `&daily=weather_code,temperature_2m_max,temperature_2m_min`
+             + `&temperature_unit=${unit}&timezone=auto&forecast_days=5`;
+  try {
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    renderWeather(await res.json());
+  } catch {
+    showWeatherError('Weather unavailable');
+  }
+}
+
+function renderWeather(data) {
+  const sym  = CONFIG.TEMP_UNIT === 'celsius' ? '°C' : '°F';
+  const cur  = data.current;
+  const d    = data.daily;
+
+  document.getElementById('weather-icon').textContent = weatherIcon(cur.weather_code);
+  document.getElementById('weather-temp').textContent = `${Math.round(cur.temperature_2m)}${sym}`;
+  document.getElementById('weather-desc').textContent = weatherDesc(cur.weather_code);
+  document.getElementById('weather-body').style.display = '';
+  document.getElementById('weather-error').style.display = 'none';
+
+  const fc = document.getElementById('weather-forecast');
+  fc.innerHTML = '';
+  for (let i = 0; i < Math.min(5, d.time.length); i++) {
+    const dt   = new Date(d.time[i] + 'T12:00:00');
+    const name = i === 0 ? 'Today' : DAY_SHORT[dt.getDay()];
+    const el   = document.createElement('div');
+    el.className = 'forecast-day';
+    el.innerHTML =
+      `<span class="forecast-name">${name}</span>`
+    + `<span class="forecast-icon">${weatherIcon(d.weather_code[i])}</span>`
+    + `<span class="forecast-temps"><span class="forecast-hi">${Math.round(d.temperature_2m_max[i])}°</span> ${Math.round(d.temperature_2m_min[i])}°</span>`;
+    fc.appendChild(el);
+  }
+}
+
+function showWeatherError(msg) {
+  document.getElementById('weather-body').style.display = 'none';
+  const el = document.getElementById('weather-error');
+  el.style.display = '';
+  el.textContent = msg;
+}
+
+// ============================================================
+//  GOOGLE CALENDAR
+// ============================================================
+let tokenClient  = null;
+let accessToken  = null;
+
+function initGoogleAuth() {
+  if (typeof google === 'undefined' || !google.accounts) {
+    setTimeout(initGoogleAuth, 500);
+    return;
+  }
+
+  if (!CONFIG.GOOGLE_CLIENT_ID || CONFIG.GOOGLE_CLIENT_ID.includes('YOUR_CLIENT_ID')) {
+    showSignIn('Set GOOGLE_CLIENT_ID in the config to connect your calendar.');
+    return;
+  }
+
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CONFIG.GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/calendar.readonly',
+    callback(resp) {
+      if (resp.error) { showSignIn('Sign-in failed — try again.'); return; }
+      accessToken = resp.access_token;
+      fetchCalendarEvents();
+    },
+  });
+
+  // Attempt fetch — will show sign-in if no token
+  fetchCalendarEvents();
+}
+
+function requestToken() {
+  tokenClient?.requestAccessToken({ prompt: 'consent' });
+}
+
+function showSignIn(msg) {
+  document.getElementById('cal-events').style.display = 'none';
+  document.getElementById('cal-signin').style.display = 'flex';
+  document.getElementById('cal-signin-msg').textContent = msg || 'Sign in to view your calendar';
+  document.getElementById('cal-status').textContent = '';
+}
+
+function hideSignIn() {
+  document.getElementById('cal-signin').style.display = 'none';
+  document.getElementById('cal-events').style.display = '';
+}
+
+// Format a Date to display time string
+function fmtTime(date) {
+  if (CONFIG.TIME_FORMAT === '12h') {
+    let h    = date.getHours();
+    const m  = String(date.getMinutes()).padStart(2, '0');
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ap}`;
+  }
+  return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+}
+
+async function fetchCalendarEvents() {
+  if (!accessToken) { showSignIn('Sign in to view your calendar'); return; }
+
+  document.getElementById('cal-status').textContent = 'Updating…';
+
+  try {
+    // 1. Get list of all calendars
+    const listRes = await fetch(
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (listRes.status === 401) { accessToken = null; showSignIn('Session expired — sign in again.'); return; }
+    if (!listRes.ok) throw new Error(`calendarList ${listRes.status}`);
+
+    const calendars = (await listRes.json()).items || [];
+    const colorMap  = Object.fromEntries(calendars.map(c => [c.id, c.backgroundColor || '#58a6ff']));
+
+    const now      = new Date();
+    const timeMin  = now.toISOString();
+    const timeMax  = new Date(now.getFullYear(), now.getMonth(),
+                              now.getDate() + CONFIG.CALENDAR_DAYS_AHEAD).toISOString();
+
+    // 2. Fetch events from all calendars in parallel
+    const allEvents = [];
+    await Promise.all(calendars.map(async cal => {
+      try {
+        const params = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', orderBy: 'startTime', maxResults: '20' });
+        const res = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?${params}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!res.ok) return;
+        for (const ev of (await res.json()).items || []) {
+          allEvents.push({ ...ev, _color: colorMap[cal.id] || '#58a6ff' });
+        }
+      } catch { /* skip */ }
+    }));
+
+    // 3. Sort by start time
+    allEvents.sort((a, b) => {
+      const as = a.start.dateTime || a.start.date;
+      const bs = b.start.dateTime || b.start.date;
+      return as < bs ? -1 : as > bs ? 1 : 0;
+    });
+
+    renderCalendar(allEvents);
+    document.getElementById('cal-status').textContent = `Updated ${fmtTime(new Date())}`;
+
+  } catch {
+    document.getElementById('cal-status').textContent = 'Error loading events';
+  }
+}
+
+function renderCalendar(events) {
+  hideSignIn();
+  const container = document.getElementById('cal-events');
+  container.innerHTML = '';
+
+  // Group by local date key
+  const groups = new Map();
+  for (const ev of events) {
+    const d   = ev.start.dateTime ? new Date(ev.start.dateTime) : new Date(ev.start.date + 'T00:00:00');
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!groups.has(key)) groups.set(key, { date: d, events: [] });
+    groups.get(key).events.push(ev);
+  }
+
+  const today = new Date();
+  const todayKey    = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+  const tomorrowD   = new Date(today); tomorrowD.setDate(tomorrowD.getDate() + 1);
+  const tomorrowKey = `${tomorrowD.getFullYear()}-${tomorrowD.getMonth()}-${tomorrowD.getDate()}`;
+
+  for (const [key, { date, events }] of groups) {
+    const isToday    = key === todayKey;
+    const isTomorrow = key === tomorrowKey;
+    const labelText  = isToday    ? 'Today'
+                     : isTomorrow ? 'Tomorrow'
+                     : `${DAY_NAMES[date.getDay()]}, ${MON_SHORT[date.getMonth()]} ${date.getDate()}`;
+
+    const group = document.createElement('div');
+    group.className = 'day-group';
+
+    const label = document.createElement('div');
+    label.className = isToday ? 'day-label today' : 'day-label';
+    label.textContent = labelText;
+    group.appendChild(label);
+
+    for (const ev of events) {
+      const item   = document.createElement('div');
+      item.className = 'event-item';
+
+      const dot   = document.createElement('div');
+      dot.className = 'event-dot';
+      dot.style.background = ev._color;
+
+      const time  = document.createElement('div');
+      time.className = 'event-time';
+      time.textContent = ev.start.date && !ev.start.dateTime
+        ? 'All Day'
+        : fmtTime(new Date(ev.start.dateTime));
+
+      const title = document.createElement('div');
+      title.className = 'event-title';
+      title.textContent = ev.summary || '(No title)';
+
+      item.appendChild(dot);
+      item.appendChild(time);
+      item.appendChild(title);
+      group.appendChild(item);
+    }
+
+    container.appendChild(group);
+  }
+
+  if (groups.size === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'no-events';
+    empty.textContent = 'No upcoming events';
+    container.appendChild(empty);
+  }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+function init() {
+  // Clock — tick every second
+  renderClock();
+  setInterval(renderClock, 1000);
+
+  // Weather — fetch now, then every 30 min
+  fetchWeather();
+  setInterval(fetchWeather, CONFIG.WEATHER_REFRESH);
+
+  // Calendar — init OAuth, then poll every 5 min
+  initGoogleAuth();
+  setInterval(() => { if (accessToken) fetchCalendarEvents(); }, CONFIG.CALENDAR_REFRESH);
+
+  // Full page reload every 6 hours (old hardware memory management)
+  setTimeout(() => location.reload(), CONFIG.FULL_RELOAD);
+
+  // Sign-in button
+  document.getElementById('signin-btn').addEventListener('click', requestToken);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
